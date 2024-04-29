@@ -1,10 +1,11 @@
 import numpy as np
 from sklearn.cluster import KMeans
+import tiktoken
 
 def embed_text(
     openai_client
-    , openai_embedding_model
     , text_list
+    , openai_embedding_model = 'text-embedding-3-large'
 ):
     ret = openai_client.embeddings.create(
         input = text_list
@@ -27,6 +28,7 @@ def generate_prompt(
     , prompt_observations
     , prompt_texts
     , preamble = ''
+    , openai_textgen_model = 'gpt-4-turbo'
 ):
     n_obs = len(text_list)
 
@@ -58,5 +60,40 @@ def generate_prompt(
     my_body_string = '\n\n=====\n\n'.join(my_body_list)
 
     my_full_prompt = preamble + '\n\n=====\n\n' + my_body_string
+    
+    encoder = tiktoken.encoding_for_model(openai_textgen_model)
+    ntokens = len(encoder.encode(my_full_prompt))
+    
+    return (ntokens, my_full_prompt)
 
-    return my_full_prompt
+def count_tokens(
+    text_list
+    , openai_embedding_model = 'text-embedding-3-large'
+    , openai_textgen_model = 'gpt-4-turbo'
+):
+    encoder_embedding = tiktoken.encoding_for_model(openai_embedding_model)
+    encoder_textgen = tiktoken.encoding_for_model(openai_textgen_model)
+    
+    ntokens_embedding_list = [len(encoder_embedding.encode(text)) for text in text_list]
+    ntokens_embedding_max = max(ntokens_embedding_list)
+    
+    ntokens_textgen_list = [len(encoder_textgen.encode(text)) for text in text_list]
+    ntokens_textgen_total = sum(ntokens_textgen_list)
+    
+    return (ntokens_embedding_max, ntokens_textgen_total)
+
+def interpret_clusters(
+    openai_client
+    , prompt
+    , openai_textgen_model = 'gpt-4-turbo'
+    , temperature = 1.0
+):
+    response = openai_client.chat.completions.create(
+        model = openai_textgen_model
+        , messages = [
+            {"role": "user", "content": prompt}
+        ]
+        , temperature = temperature
+    )
+    return response.choices[0].message.content
+

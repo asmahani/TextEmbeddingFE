@@ -8,6 +8,7 @@ setup(
         # List your project's dependencies here, e.g.,
         'numpy'
         , 'openai'
+        , 'tiktoken'
     ],
     # Additional metadata about your package.
     author='Alireza S. Mahani',
