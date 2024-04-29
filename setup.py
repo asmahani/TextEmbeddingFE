@@ -6,8 +6,8 @@ setup(
     packages=find_packages(),
     install_requires=[
         # List your project's dependencies here, e.g.,
-        # 'numpy',
-        'openai'
+        'numpy'
+        , 'openai'
     ],
     # Additional metadata about your package.
     author='Alireza S. Mahani',
