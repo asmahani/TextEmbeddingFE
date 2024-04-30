@@ -1,6 +1,9 @@
 import numpy as np
 from sklearn.cluster import KMeans
 import tiktoken
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import KFold
+import copy
 
 def embed_text(
     openai_client
@@ -97,3 +100,40 @@ def interpret_clusters(
     )
     return response.choices[0].message.content
 
+class FeatureExtractor_Classifier:
+    def __init__(self, **kwargs):
+        self.knn = KNeighborsClassifier(**kwargs)
+        return None
+    
+    def fit(self, X, y, cv = 5):
+
+        if not isinstance(cv, int):
+            raise TypeError("'cv' must be an integer")
+        
+        # create folds
+        kf = KFold(n_splits = cv)
+        kf.get_n_splits(X)
+        self.kfolds = kf
+        self.nfolds = cv
+        
+        # train model within each fold
+        trained_models = []
+        insample_prediction_proba = np.empty(len(y), dtype = float)
+        for (train_index, test_index) in kf.split(X):
+            tmp_knn = copy.deepcopy(self.knn).fit(X[train_index, :], y[train_index])
+            insample_prediction_proba[test_index] = tmp_knn.predict_proba(X[test_index, :])[:, 1]
+            trained_models.append(tmp_knn)
+
+        self.trained_models = trained_models
+        self.insample_prediction_proba = insample_prediction_proba
+        return self
+    
+    def predict_proba(self, X = None):
+
+        if X is None:
+            return self.insample_prediction_proba
+        
+        all_preds = np.empty((X.shape[0], self.nfolds), dtype = float)
+        for n in range(self.nfolds):
+            all_preds[:, n] = self.trained_models[n].predict_proba(X)[:, 1]
+        return np.mean(all_preds, axis = 1)
