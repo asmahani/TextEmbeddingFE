@@ -14,7 +14,8 @@ def embed_text(
         input = text_list
         , model = openai_embedding_model
     )
-    return np.transpose(np.array([ret.data[n].embedding for n in range(len(ret.data))]))
+    #return np.transpose(np.array([ret.data[n].embedding for n in range(len(ret.data))]))
+    return np.array([ret.data[n].embedding for n in range(len(ret.data))])
 
 def cluster_embeddings(
     X
