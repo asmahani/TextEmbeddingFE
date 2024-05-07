@@ -29,8 +29,8 @@ def cluster_embeddings(
 def generate_prompt(
     text_list
     , cluster_labels
-    , prompt_observations
-    , prompt_texts
+    , prompt_observations = None
+    , prompt_texts = None
     , preamble = ''
     , openai_textgen_model = 'gpt-4-turbo'
 ):
