@@ -10,11 +10,20 @@ def embed_text(
     , text_list
     , openai_embedding_model = 'text-embedding-3-large'
 ):
+    """Thin wrapper around OpenAI's API call for embedding text.
+
+    :param openai_client: Active OpenAI client connection
+    :param text_list: List of strings to be embedded
+    :type text_list: list
+    :param openai_embedding_model: Name of OpenAI embedding model, defaults to 'text-embedding-3-large'
+    :type openai_embedding_model: str
+    :return: Embedding matrix, a 2D numpy array, with each row being the embedded vector corresponding to an element of text_list
+    :rtype: numpy.ndarray
+    """
     ret = openai_client.embeddings.create(
         input = text_list
         , model = openai_embedding_model
     )
-    #return np.transpose(np.array([ret.data[n].embedding for n in range(len(ret.data))]))
     return np.array([ret.data[n].embedding for n in range(len(ret.data))])
 
 def cluster_embeddings(
@@ -22,6 +31,20 @@ def cluster_embeddings(
     , n_clusters
     , n_init
 ):
+    """
+    Thin wrapper around the KMeans clustering algorithm in sklearn, returning cluster labels.
+
+    :param X: The embedding matrix, a 2D numpy array, such as one returned by :func:`embed_text`, 
+    where each row represents the embedding vector for one observation.
+    :type X: numpy.ndarray
+    :param n_clusters: Number of clusters to create.
+    :type n_clusters: int
+    :param n_init: Number of runs of k-means clustering to perform, each with a different random 
+    initialization of cluster centers.
+    :type n_init: int
+    :return: Vector of cluster labels, one for each row of X
+    :rtype: numpy.ndarray
+    """
     this_kmeans = KMeans(n_clusters = n_clusters, n_init = n_init).fit(X)
     this_labels = this_kmeans.labels_
     return this_labels
