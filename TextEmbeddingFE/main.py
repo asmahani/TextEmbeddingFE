@@ -4,6 +4,7 @@ import tiktoken
 from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import KFold
 import copy
+import openai
 
 def embed_text(
     openai_client
@@ -20,11 +21,23 @@ def embed_text(
     :return: Embedding matrix, a 2D numpy array, with each row being the embedded vector corresponding to an element of text_list
     :rtype: numpy.ndarray
     """
-    ret = openai_client.embeddings.create(
-        input = text_list
-        , model = openai_embedding_model
-    )
-    return np.array([ret.data[n].embedding for n in range(len(ret.data))])
+    if not isinstance(text_list, list) or not all(isinstance(item, str) for item in text_list):
+        raise ValueError("text_list must be a list of strings")
+
+    if not text_list:
+        raise ValueError("text_list cannot be empty")
+    
+    try:
+        ret = openai_client.embeddings.create(
+            input = text_list
+            , model = openai_embedding_model
+        )
+        return np.array([ret.data[n].embedding for n in range(len(ret.data))])
+    except openai.OpenAIError as e:
+        raise RuntimeError(f"An error occurred while processing the request: {str(e)}") from e
+    except Exception as e:
+        raise RuntimeError(f"An unexpected error occurred: {str(e)}") from e
+        
 
 def cluster_embeddings(
     X
