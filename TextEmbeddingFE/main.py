@@ -161,16 +161,51 @@ def count_tokens(
     , openai_embedding_model = 'text-embedding-3-large'
     , openai_textgen_model = 'gpt-4-turbo'
 ):
-    encoder_embedding = tiktoken.encoding_for_model(openai_embedding_model)
-    encoder_textgen = tiktoken.encoding_for_model(openai_textgen_model)
+    """
+    Calculate the maximum number of tokens for any text in the list using 
+    the tokenizer associated with the specified OpenAI embedding model, and 
+    the total number of tokens for all texts using the tokenizer associated 
+    with the specified text-completion OpenAI model.
+
+    :param text_list: List of text strings to be encoded and counted for tokens.
+    :type text_list: list of str
+    :param openai_embedding_model: The OpenAI embedding model whose tokenizer is applied to the text in order 
+    to find the maximum number of tokens in any single text.
+    :type openai_embedding_model: str
+    :param openai_textgen_model: The OpenAI text-completion model whose tokenizer is applied to the text 
+    in order to find the total number of tokens across all texts.
+    :type openai_textgen_model: str
+    :return: A tuple containing the maximum number of tokens in any single text and the total number of tokens across all texts.
+    :rtype: (int, int)
+
+    :Example:
+
+    >>> text_list = ["hello world", "example of a longer piece of text that needs tokenizing"]
+    >>> count_tokens(text_list)
+    (11, 13)
+    """
     
-    ntokens_embedding_list = [len(encoder_embedding.encode(text)) for text in text_list]
-    ntokens_embedding_max = max(ntokens_embedding_list)
+    # Validate input type for text_list
+    if not isinstance(text_list, list) or not all(isinstance(text, str) for text in text_list):
+        raise ValueError("text_list must be a list of strings.")
     
-    ntokens_textgen_list = [len(encoder_textgen.encode(text)) for text in text_list]
-    ntokens_textgen_total = sum(ntokens_textgen_list)
+    # Ensure text_list is not empty to avoid errors in max() and sum() calculations
+    if not text_list:
+        raise ValueError("text_list cannot be empty.")
     
-    return (ntokens_embedding_max, ntokens_textgen_total)
+    try:
+        encoder_embedding = tiktoken.encoding_for_model(openai_embedding_model)
+        encoder_textgen = tiktoken.encoding_for_model(openai_textgen_model)
+        
+        ntokens_embedding_list = [len(encoder_embedding.encode(text)) for text in text_list]
+        ntokens_embedding_max = max(ntokens_embedding_list)
+        
+        ntokens_textgen_list = [len(encoder_textgen.encode(text)) for text in text_list]
+        ntokens_textgen_total = sum(ntokens_textgen_list)
+        
+        return (ntokens_embedding_max, ntokens_textgen_total)
+    except Exception as e:
+        raise RuntimeError(f"An error occurred while executing the function: {str(e)}")
 
 def interpret_clusters(
     openai_client
