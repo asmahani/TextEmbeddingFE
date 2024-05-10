@@ -88,10 +88,42 @@ def generate_prompt(
     , preamble = ''
     , openai_textgen_model = 'gpt-4-turbo'
 ):
-    n_obs = len(text_list)
+    """Assembling a prompt to solicit cluster descriptions from OpenAI's text completion models.
+    The returned prompt will consist of two parts: 1- preamble, which provides the context and instructions to
+    the text-completion model, and 2- the list of observations, grouped by their clusters, and
+    each observation represented by the value of their text field.
 
+    :param text_list: List of text strings associated with a collection of observations.
+    :type text_list: list
+    :param cluster_labels: Numpy array of cluster memberships associated the same collection of observations.
+    :type cluster_labels: numpy.ndarray
+    :param prompt_observations: What observation units should be referred to in the prompt, must be in plural form.
+    Used to generate the prompt preamble, and will be ignored if `preamble` is any string other than the empty string.
+    :type prompt_observations: str
+    :param prompt_texts: What does the text field represent for each observation unit? Must be in plural form.
+    Used to generate the prompt preamble, and will be ignored if `preamble` is any string other than the empty string.
+    :type prompt_texts: str
+    :param preamble: Prompt preamble which provides the context and requested task to the text-completion model.
+    If an empty string is provided - which is the default value - preamble will be automatically constructed.
+    :type preamble: str
+    :param openai_textgen_model: Name of target text-completion model from OpenAI, defaults to 'gpt-4-turbo'
+    :type openai_textgen_model: str
+    :return: Tuple consisting of 1- length of the assembled prompt, 2- full text of the prompt.
+    :rtype: (int, str)
+    """
+    if not isinstance(text_list, list) or not all(isinstance(item, str) for item in text_list):
+        raise TypeError("text_list must be a list of strings.")
+    if not isinstance(cluster_labels, np.ndarray):
+        raise TypeError("cluster_labels must be a numpy ndarray.")
+    if not text_list:
+        raise ValueError("text_list cannot be empty.")
+    if cluster_labels.size == 0:
+        raise ValueError("cluster_labels cannot be empty.")
+    n_obs = len(text_list)
     if len(cluster_labels) != n_obs:
         raise ValueError("Number of text strings and cluster labels must be the same.")
+    if preamble == '' and (not prompt_observations or not prompt_texts):
+        raise ValueError("'prompt_observations' and 'prompt_texts' must be provided if 'preamble' is to be generated automatically.")
 
     my_clusters = np.unique(cluster_labels)
     n_cluster = len(my_clusters)
