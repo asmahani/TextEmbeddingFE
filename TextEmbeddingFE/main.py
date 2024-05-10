@@ -20,6 +20,8 @@ def embed_text(
     :type openai_embedding_model: str
     :return: Embedding matrix, a 2D numpy array, with each row being the embedded vector corresponding to an element of text_list
     :rtype: numpy.ndarray
+    :raises ValueError: If `text_list` is not a list of strings or is empty.
+    :raises RuntimeError: If OpenAI API returns with an error, or any other unexpected errors occur.
     """
     if not isinstance(text_list, list) or not all(isinstance(item, str) for item in text_list):
         raise ValueError("text_list must be a list of strings")
@@ -57,10 +59,26 @@ def cluster_embeddings(
     :type n_init: int
     :return: Vector of cluster labels, one for each row of X
     :rtype: numpy.ndarray
+    :raises ValueError: If `X` is not a 2D numpy array, or if `n_clusters` or `n_init` are not positive integers.
+    :raises RuntimeError: If an unexpected error occurs during the KMeans clustering process.
     """
-    this_kmeans = KMeans(n_clusters = n_clusters, n_init = n_init).fit(X)
-    this_labels = this_kmeans.labels_
-    return this_labels
+    if not isinstance(X, np.ndarray):
+        raise ValueError("X must be a numpy ndarray.")
+    
+    if not X.ndim == 2:
+        raise ValueError("X must be a 2D numpy array.")
+
+    if not isinstance(n_clusters, int) or n_clusters <= 0:
+        raise ValueError("n_clusters must be a positive integer.")
+
+    if not isinstance(n_init, int) or n_init <= 0:
+        raise ValueError("n_init must be a positive integer.")
+    
+    try:
+        this_kmeans = KMeans(n_clusters = n_clusters, n_init = n_init).fit(X)
+        return this_kmeans.labels_
+    except Exception as e:
+        raise RuntimeError(f"An error occurred while performing KMeans clustering: {e}")
 
 def generate_prompt(
     text_list
