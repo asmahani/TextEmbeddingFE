@@ -246,13 +246,47 @@ def interpret_clusters(
     except Exception as e:
         raise RuntimeError(f"Failed to generate completion from OpenAI API: {e}")
 
-class FeatureExtractor_Classifier:
+class FeatureExtractor_BinaryClassifier:
+    """
+    Class for extracting a single-column feature from text embeddings by wrapping a K-Nearest-Neighbor binary classifier
+    in K-fold cross-validation. For in-sample data, i.e., the data used to train the KNN model, the feature
+    is the prediction of the CV iteration where data point was left out of training. For out-of-sample
+    data, the feature is the average predictions of K individual models trained during CV.
+
+    Attributes:
+        knn (KNeighborsClassifier): The KNN classifier.
+        kfolds (KFold): The cross-validation fold generator.
+        nfolds (int): The number of folds used for cross-validation.
+        trained_models (list): List of trained KNN models, one per fold.
+        insample_prediction_proba (numpy.ndarray): Array of in-sample prediction probabilities.
+
+    :param kwargs: Keyword arguments passed to the KNeighborsClassifier constructor.
+    """
     def __init__(self, **kwargs):
         self.knn = KNeighborsClassifier(**kwargs)
         return None
     
     def fit(self, X, y, cv = 5):
+        """
+        Fits the KNN model using K-fold cross-validation, and generate and save the in-sample
+        predicted probabilities.
 
+        :param X: Feature matrix.
+        :type X: numpy.ndarray
+        :param y: Target vector.
+        :type y: numpy.ndarray
+        :param cv: Number of cross-validation folds.
+        :type cv: int
+        :return: Self.
+        :rtype: FeatureExtractor_BinaryClassifier
+
+        :raises ValueError: If `X` and `y` have mismatched lengths.
+        :raises TypeError: If `cv` is not an integer.
+        """
+        if not isinstance(X, np.ndarray) or not isinstance(y, np.ndarray):
+            raise TypeError("X and y must be numpy arrays.")
+        if len(X) != len(y):
+            raise ValueError("The length of X and y must be the same.")
         if not isinstance(cv, int):
             raise TypeError("'cv' must be an integer")
         
@@ -275,9 +309,25 @@ class FeatureExtractor_Classifier:
         return self
     
     def predict_proba(self, X = None):
+        """
+        Predicts probabilities using the trained models. If `X` is None, returns in-sample predictions.
+        Otherwise, average of predictions from each individual model trained during cross-validated fit
+        is returned.
 
+        :param X: Feature matrix; if None, returns in-sample prediction probabilities.
+        :type X: numpy.ndarray, optional
+        :return: Predicted probabilities.
+        :rtype: numpy.ndarray
+
+        :raises RuntimeError: If called before the model is fit.
+        """
+
+        if not hasattr(self, 'trained_models'):
+            raise RuntimeError("This FeatureExtractor_BinaryClassifier instance is not fitted yet. Call 'fit' with appropriate arguments before using this method.")
         if X is None:
             return self.insample_prediction_proba
+        if not isinstance(X, np.ndarray):
+            raise TypeError("X must be a numpy array.")       
         
         all_preds = np.empty((X.shape[0], self.nfolds), dtype = float)
         for n in range(self.nfolds):
