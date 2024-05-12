@@ -5,6 +5,8 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.model_selection import KFold
 import copy
 import openai
+import pandas as pd
+from scipy.stats import fisher_exact
 
 def embed_text(
     openai_client
@@ -333,3 +335,26 @@ class FeatureExtractor_BinaryClassifier:
         for n in range(self.nfolds):
             all_preds[:, n] = self.trained_models[n].predict_proba(X)[:, 1]
         return np.mean(all_preds, axis = 1)
+
+def fisher_test_wrapper(
+    dat
+    , col_x = None
+    , col_y = None
+):
+    if not col_x:
+        col_x = dat.columns[0]
+    if not col_y:
+        col_y = dat.columns[1]
+    
+    results = []
+    categories = dat[col_x].unique()
+    
+    for category in categories:
+        # Create contingency table for each category vs. rest
+        table = pd.crosstab(dat[col_x] == category, dat[col_y])
+        # Calculate Fisher's Exact Test
+        odds_ratio, p_value = fisher_exact(table, alternative='two-sided')
+        results.append((category, odds_ratio, p_value))
+    
+    results_df = pd.DataFrame(results, columns=['Category', 'Odds Ratio', 'P-value'])
+    return results_df

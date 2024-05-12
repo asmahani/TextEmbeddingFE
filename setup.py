@@ -2,13 +2,17 @@ from setuptools import setup, find_packages
 
 setup(
     name='TextEmbeddingFE',
-    version='0.1',
+    version='0.2',
     packages=find_packages(),
     install_requires=[
         # List your project's dependencies here, e.g.,
         'numpy'
         , 'openai'
         , 'tiktoken'
+        , 'pandas'
+        , 'scikit-learn'
+        , 'tiktoken'
+        , 'scipy'
     ],
     # Additional metadata about your package.
     author='Alireza S. Mahani',
