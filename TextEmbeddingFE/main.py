@@ -264,8 +264,9 @@ class FeatureExtractor_BinaryClassifier:
 
     :param kwargs: Keyword arguments passed to the KNeighborsClassifier constructor.
     """
-    def __init__(self, **kwargs):
+    def __init__(self, logit = True, **kwargs):
         self.knn = KNeighborsClassifier(**kwargs)
+        self.logit = logit
         return None
     
     def fit(self, X, y, cv = 5):
@@ -303,7 +304,12 @@ class FeatureExtractor_BinaryClassifier:
         insample_prediction_proba = np.empty(len(y), dtype = float)
         for (train_index, test_index) in kf.split(X):
             tmp_knn = copy.deepcopy(self.knn).fit(X[train_index, :], y[train_index])
-            insample_prediction_proba[test_index] = tmp_knn.predict_proba(X[test_index, :])[:, 1]
+            
+            tmp_pred = tmp_knn.predict_proba(X[test_index, :])[:, 1]
+            if self.logit:
+                tmp_pred = np.log(tmp_pred / (1.0 - tmp_pred))
+            insample_prediction_proba[test_index] = tmp_pred
+            
             trained_models.append(tmp_knn)
 
         self.trained_models = trained_models
@@ -334,6 +340,8 @@ class FeatureExtractor_BinaryClassifier:
         all_preds = np.empty((X.shape[0], self.nfolds), dtype = float)
         for n in range(self.nfolds):
             all_preds[:, n] = self.trained_models[n].predict_proba(X)[:, 1]
+            if self.logit:
+                all_preds[:, n] = np.log(all_preds[:, n] / (1.0 - all_preds[:, n]))
         return np.mean(all_preds, axis = 1)
 
 def fisher_test_wrapper(
