@@ -8,6 +8,110 @@ import openai
 import pandas as pd
 from scipy.stats import fisher_exact
 
+class FeatureExtractor_BinaryClassifier:
+    """
+    Class for extracting a single-column feature from text embeddings by wrapping a K-Nearest-Neighbor binary classifier
+    in K-fold cross-validation. For in-sample data, i.e., the data used to train the KNN model, the feature
+    is the prediction of the CV iteration where data point was left out of training. For out-of-sample
+    data, the feature is the average predictions of K individual models trained during CV.
+
+    Attributes:
+        knn (KNeighborsClassifier): The KNN classifier.
+        logit (bool): Boolean flag indicating whether predictions should be returned on a logit scale or not.
+        laplace (bool): Boolean flag, indicating whether lplace smoothing should be applied to the predicted probabilities or not.
+        kfolds (KFold): The cross-validation fold generator.
+        nfolds (int): The number of folds used for cross-validation.
+        trained_models (list): List of trained KNN models, one per fold.
+        insample_prediction_proba (numpy.ndarray): Array of in-sample prediction probabilities.
+
+    :param kwargs: Keyword arguments passed to the KNeighborsClassifier constructor.
+    """
+    def __init__(self, logit = True, laplace = True, **kwargs):
+        self.knn = KNeighborsClassifier(**kwargs)
+        self.logit = logit
+        self.laplace = laplace
+        return None
+    
+    def fit(self, X, y, cv = 5):
+        """
+        Fits the KNN model using K-fold cross-validation, and generate and save the in-sample
+        predicted probabilities.
+
+        :param X: Feature matrix.
+        :type X: numpy.ndarray
+        :param y: Target vector.
+        :type y: numpy.ndarray
+        :param cv: Number of cross-validation folds.
+        :type cv: int
+        :return: Self.
+        :rtype: FeatureExtractor_BinaryClassifier
+
+        :raises ValueError: If `X` and `y` have mismatched lengths.
+        :raises TypeError: If `cv` is not an integer.
+        """
+        if not isinstance(X, np.ndarray) or not isinstance(y, np.ndarray):
+            raise TypeError("X and y must be numpy arrays.")
+        if len(X) != len(y):
+            raise ValueError("The length of X and y must be the same.")
+        if not isinstance(cv, int):
+            raise TypeError("'cv' must be an integer")
+        
+        # create folds
+        kf = KFold(n_splits = cv)
+        kf.get_n_splits(X)
+        self.kfolds = kf
+        self.nfolds = cv
+        
+        # train model within each fold
+        trained_models = []
+        insample_prediction_proba = np.empty(len(y), dtype = float)
+        for (train_index, test_index) in kf.split(X):
+            tmp_knn = copy.deepcopy(self.knn).fit(X[train_index, :], y[train_index])
+            
+            tmp_pred = tmp_knn.predict_proba(X[test_index, :])[:, 1]
+            if self.laplace:
+                tmp_pred = (tmp_pred * self.knn.n_neighbors + 1) / (self.knn.n_neighbors + 2)
+            if self.logit:
+                tmp_pred = np.log(tmp_pred / (1.0 - tmp_pred))
+            insample_prediction_proba[test_index] = tmp_pred
+            
+            trained_models.append(tmp_knn)
+
+        self.trained_models = trained_models
+        self.insample_prediction_proba = insample_prediction_proba
+        return self
+    
+    def predict_proba(self, X = None):
+        """
+        Predicts probabilities using the trained models. If `X` is None, returns in-sample predictions.
+        Otherwise, average of predictions from each individual model trained during cross-validated fit
+        is returned.
+
+        :param X: Feature matrix; if None, returns in-sample prediction probabilities.
+        :type X: numpy.ndarray, optional
+        :return: Predicted probabilities.
+        :rtype: numpy.ndarray
+
+        :raises RuntimeError: If called before the model is fit.
+        """
+
+        if not hasattr(self, 'trained_models'):
+            raise RuntimeError("This FeatureExtractor_BinaryClassifier instance is not fitted yet. Call 'fit' with appropriate arguments before using this method.")
+        if X is None:
+            return self.insample_prediction_proba
+        if not isinstance(X, np.ndarray):
+            raise TypeError("X must be a numpy array.")       
+        
+        all_preds = np.empty((X.shape[0], self.nfolds), dtype = float)
+        for n in range(self.nfolds):
+            tmp_pred = self.trained_models[n].predict_proba(X)[:, 1]
+            if self.laplace:
+                tmp_pred = (tmp_pred * self.knn.n_neighbors + 1) / (self.knn.n_neighbors + 2)
+            if self.logit:
+                tmp_pred = np.log(tmp_pred / (1.0 - tmp_pred))
+            all_preds[:, n] = tmp_pred
+        return np.mean(all_preds, axis = 1)
+
 def embed_text(
     openai_client
     , text_list
@@ -247,102 +351,6 @@ def interpret_clusters(
         return response.choices[0].message.content
     except Exception as e:
         raise RuntimeError(f"Failed to generate completion from OpenAI API: {e}")
-
-class FeatureExtractor_BinaryClassifier:
-    """
-    Class for extracting a single-column feature from text embeddings by wrapping a K-Nearest-Neighbor binary classifier
-    in K-fold cross-validation. For in-sample data, i.e., the data used to train the KNN model, the feature
-    is the prediction of the CV iteration where data point was left out of training. For out-of-sample
-    data, the feature is the average predictions of K individual models trained during CV.
-
-    Attributes:
-        knn (KNeighborsClassifier): The KNN classifier.
-        kfolds (KFold): The cross-validation fold generator.
-        nfolds (int): The number of folds used for cross-validation.
-        trained_models (list): List of trained KNN models, one per fold.
-        insample_prediction_proba (numpy.ndarray): Array of in-sample prediction probabilities.
-
-    :param kwargs: Keyword arguments passed to the KNeighborsClassifier constructor.
-    """
-    def __init__(self, logit = True, **kwargs):
-        self.knn = KNeighborsClassifier(**kwargs)
-        self.logit = logit
-        return None
-    
-    def fit(self, X, y, cv = 5):
-        """
-        Fits the KNN model using K-fold cross-validation, and generate and save the in-sample
-        predicted probabilities.
-
-        :param X: Feature matrix.
-        :type X: numpy.ndarray
-        :param y: Target vector.
-        :type y: numpy.ndarray
-        :param cv: Number of cross-validation folds.
-        :type cv: int
-        :return: Self.
-        :rtype: FeatureExtractor_BinaryClassifier
-
-        :raises ValueError: If `X` and `y` have mismatched lengths.
-        :raises TypeError: If `cv` is not an integer.
-        """
-        if not isinstance(X, np.ndarray) or not isinstance(y, np.ndarray):
-            raise TypeError("X and y must be numpy arrays.")
-        if len(X) != len(y):
-            raise ValueError("The length of X and y must be the same.")
-        if not isinstance(cv, int):
-            raise TypeError("'cv' must be an integer")
-        
-        # create folds
-        kf = KFold(n_splits = cv)
-        kf.get_n_splits(X)
-        self.kfolds = kf
-        self.nfolds = cv
-        
-        # train model within each fold
-        trained_models = []
-        insample_prediction_proba = np.empty(len(y), dtype = float)
-        for (train_index, test_index) in kf.split(X):
-            tmp_knn = copy.deepcopy(self.knn).fit(X[train_index, :], y[train_index])
-            
-            tmp_pred = tmp_knn.predict_proba(X[test_index, :])[:, 1]
-            if self.logit:
-                tmp_pred = np.log(tmp_pred / (1.0 - tmp_pred))
-            insample_prediction_proba[test_index] = tmp_pred
-            
-            trained_models.append(tmp_knn)
-
-        self.trained_models = trained_models
-        self.insample_prediction_proba = insample_prediction_proba
-        return self
-    
-    def predict_proba(self, X = None):
-        """
-        Predicts probabilities using the trained models. If `X` is None, returns in-sample predictions.
-        Otherwise, average of predictions from each individual model trained during cross-validated fit
-        is returned.
-
-        :param X: Feature matrix; if None, returns in-sample prediction probabilities.
-        :type X: numpy.ndarray, optional
-        :return: Predicted probabilities.
-        :rtype: numpy.ndarray
-
-        :raises RuntimeError: If called before the model is fit.
-        """
-
-        if not hasattr(self, 'trained_models'):
-            raise RuntimeError("This FeatureExtractor_BinaryClassifier instance is not fitted yet. Call 'fit' with appropriate arguments before using this method.")
-        if X is None:
-            return self.insample_prediction_proba
-        if not isinstance(X, np.ndarray):
-            raise TypeError("X must be a numpy array.")       
-        
-        all_preds = np.empty((X.shape[0], self.nfolds), dtype = float)
-        for n in range(self.nfolds):
-            all_preds[:, n] = self.trained_models[n].predict_proba(X)[:, 1]
-            if self.logit:
-                all_preds[:, n] = np.log(all_preds[:, n] / (1.0 - all_preds[:, n]))
-        return np.mean(all_preds, axis = 1)
 
 def fisher_test_wrapper(
     dat
