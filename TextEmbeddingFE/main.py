@@ -145,12 +145,106 @@ def embed_text(
         raise RuntimeError(f"An error occurred while processing the request: {str(e)}") from e
     except Exception as e:
         raise RuntimeError(f"An unexpected error occurred: {str(e)}") from e
-        
+
+import numpy as np
+
+class SphericalKMeans:
+    def __init__(self, n_clusters=3, max_iter=300, tol=1e-4, random_state=None, n_init=10):
+        self.n_clusters = n_clusters
+        self.max_iter = max_iter
+        self.tol = tol
+        self.random_state = random_state
+        self.n_init = n_init
+        self.total_within_cluster_distance_ = None
+
+    def fit(self, X):
+        best_total_within_cluster_distance = float('inf')
+        best_centroids = None
+        best_labels = None
+
+        for _ in range(self.n_init):
+            if self.random_state is not None:
+                np.random.seed(self.random_state)
+            
+            # Normalize the data
+            X = self._normalize(X)
+            
+            # Initialize centroids
+            self.centroids = self._initialize_centroids(X)
+            
+            for _ in range(self.max_iter):
+                # Assign clusters
+                self.labels_ = self._assign_clusters(X)
+                # Compute new centroids
+                new_centroids = self._compute_centroids(X)
+                # Check for convergence
+                if np.all(np.abs(new_centroids - self.centroids) <= self.tol):
+                    break
+                self.centroids = new_centroids
+
+            # Calculate total within-cluster distance
+            total_within_cluster_distance = self._calculate_total_within_cluster_distance(X)
+            
+            if total_within_cluster_distance < best_total_within_cluster_distance:
+                best_total_within_cluster_distance = total_within_cluster_distance
+                best_centroids = self.centroids
+                best_labels = self.labels_
+
+        # Set the best results
+        self.centroids = best_centroids
+        self.labels_ = best_labels
+        self.total_within_cluster_distance_ = best_total_within_cluster_distance
+
+    def predict(self, X):
+        X = self._normalize(X)
+        return self._assign_clusters(X)
+
+    def _initialize_centroids(self, X):
+        # Randomly select n_clusters points as initial centroids
+        indices = np.random.choice(X.shape[0], self.n_clusters, replace=False)
+        return X[indices]
+
+    def _assign_clusters(self, X):
+        # Calculate the cosine similarity between each point and each centroid
+        similarities = np.array([[self._calculate_similarity(x, centroid) for centroid in self.centroids] for x in X])
+        # Assign each point to the nearest centroid (highest similarity)
+        return np.argmax(similarities, axis=1)
+
+    def _compute_centroids(self, X):
+        # Compute the mean of the points in each cluster to find the new centroids
+        centroids = np.zeros((self.n_clusters, X.shape[1]))
+        for k in range(self.n_clusters):
+            cluster_points = X[self.labels_ == k]
+            if len(cluster_points) > 0:
+                centroids[k] = self._normalize(cluster_points.mean(axis=0).reshape(1, -1))
+        return centroids
+
+    def _calculate_similarity(self, x1, x2):
+        # Cosine similarity
+        return np.dot(x1, x2) / (np.linalg.norm(x1) * np.linalg.norm(x2))
+
+    def _normalize(self, X):
+        # Normalize the rows of X to have unit norm
+        return X / np.linalg.norm(X, axis=1, keepdims=True)
+
+    def _calculate_total_within_cluster_distance(self, X):
+        total_distance = 0
+        for k in range(self.n_clusters):
+            cluster_points = X[self.labels_ == k]
+            centroid = self.centroids[k]
+            distances = [1 - self._calculate_similarity(point, centroid) for point in cluster_points]
+            total_distance += np.sum(distances)
+        return total_distance
+
+    def fit_predict(self, X):
+        self.fit(X)
+        return self.labels_
 
 def cluster_embeddings(
     X
     , n_clusters
     , n_init
+    #, spherical = True
 ):
     """
     Thin wrapper around the KMeans clustering algorithm in sklearn, returning cluster labels.
@@ -168,6 +262,9 @@ def cluster_embeddings(
     :raises ValueError: If `X` is not a 2D numpy array, or if `n_clusters` or `n_init` are not positive integers.
     :raises RuntimeError: If an unexpected error occurs during the KMeans clustering process.
     """
+
+    spherical = False # SphericalKMeans class must be debugged first
+    
     if not isinstance(X, np.ndarray):
         raise ValueError("X must be a numpy ndarray.")
     
@@ -181,8 +278,11 @@ def cluster_embeddings(
         raise ValueError("n_init must be a positive integer.")
     
     try:
-        this_kmeans = KMeans(n_clusters = n_clusters, n_init = n_init).fit(X)
-        return this_kmeans.labels_
+        if spherical:
+            return SphericalKMeans(n_clusters = n_clusters, n_init = n_init).fit_predict(X)
+        else:
+            return KMeans(n_clusters = n_clusters, n_init = n_init).fit_predict(X)
+        #return this_kmeans.labels_
     except Exception as e:
         raise RuntimeError(f"An error occurred while performing KMeans clustering: {e}")
 
