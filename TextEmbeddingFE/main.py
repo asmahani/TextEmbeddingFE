@@ -7,6 +7,7 @@ import copy
 import openai
 import pandas as pd
 from scipy.stats import fisher_exact
+from sentence_transformers import SentenceTransformer
 
 class FeatureExtractor_BinaryClassifier:
     """
@@ -111,6 +112,31 @@ class FeatureExtractor_BinaryClassifier:
                 tmp_pred = np.log(tmp_pred / (1.0 - tmp_pred))
             all_preds[:, n] = tmp_pred
         return np.mean(all_preds, axis = 1)
+
+def embed_text_wrapper(
+    text_list
+    , model_repository = 'openai'
+    , model_name = 'text-embedding-3-large'
+    , openai_client = None
+):
+    if not isinstance(text_list, list) or not all(isinstance(item, str) for item in text_list):
+        raise ValueError("text_list must be a list of strings")
+
+    if not text_list:
+        raise ValueError("text_list cannot be empty")
+    
+    if model_repository == 'openai':
+        ret = openai_client.embeddings.create(
+            input = text_list
+            , model = model_name
+        )
+        return np.array([ret.data[n].embedding for n in range(len(ret.data))])
+    elif model_repository == 'huggingface':
+        model = SentenceTransformer(model_name)
+        return model.encode(text_list) 
+    else:
+        raise ValueError("model repository must be one of 'openai' or 'huggingface'.")
+    
 
 def embed_text(
     openai_client
