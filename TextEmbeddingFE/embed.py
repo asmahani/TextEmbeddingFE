@@ -9,7 +9,7 @@ from gensim.models.doc2vec import Doc2Vec, TaggedDocument
 class Textcol2Mat(BaseEstimator, TransformerMixin):
     def __init__(
         self
-        , type = 'openai'
+        , type = 'doc2vec'
         , openai_client = None
         , embedding_model_openai = 'text-embedding-3-large'
         , embedding_model_st = 'neuml/pubmedbert-base-embeddings'
@@ -58,7 +58,7 @@ class Textcol2Mat(BaseEstimator, TransformerMixin):
             return self
 
     def fit_transform(self, X, y = None):
-        if self.type == 'docv2ec':
+        if self.type == 'doc2vec':
             self._fit_doc2vec(X, y)
         return self.transform(X)
     
