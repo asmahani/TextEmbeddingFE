@@ -14,6 +14,7 @@ setup(
         , 'tiktoken'
         , 'scipy'
         , 'sentence-transformers'
+        , 'gensim'
     ],
     # Additional metadata about your package.
     author='Alireza S. Mahani',

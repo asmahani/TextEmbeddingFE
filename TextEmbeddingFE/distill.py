@@ -40,6 +40,11 @@ class Mat2ScoreClassifier(Mat2ScoreBase, ClassifierMixin):
         
         # select subset of columns and renormalize
         X = np.apply_along_axis(lambda x: x / np.sqrt(np.sum(x * x)), 1, X[:, :self.nx])
+
+        if self.ncv < 2: # no cross-fitting
+            self.trained_model = copy.deepcopy(self.knn).fit(X, y)
+            self.insample_prediction_proba = self.trained_model.predict_proba(X)[:, 1]
+            return self
         
         # create folds
         kf = KFold(n_splits = self.ncv, shuffle = True)
@@ -74,6 +79,14 @@ class Mat2ScoreClassifier(Mat2ScoreBase, ClassifierMixin):
         
         # select subset of columns and renormalize
         X = np.apply_along_axis(lambda x: x / np.sqrt(np.sum(x * x)), 1, X[:, :self.nx])
+        
+        if self.ncv < 2: # no cross-fitting
+            tmp_pred = self.trained_model.predict_proba(X)[:, 1]
+            if self.laplace:
+                tmp_pred = (tmp_pred * self.knn.n_neighbors + 1) / (self.knn.n_neighbors + 2)
+            if self.logit:
+                tmp_pred = np.log(tmp_pred / (1.0 - tmp_pred))
+            return tmp_pred
         
         all_preds = np.empty((len(X), self.ncv), dtype = float)
         for n in range(self.ncv):
