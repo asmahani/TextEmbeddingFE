@@ -83,7 +83,8 @@ class SphericalKMeans:
 
     def _assign_clusters(self, X, hard=True):
         # Calculate the cosine similarity between each point and each centroid
-        similarities = np.array([[self._calculate_similarity(x, centroid) for centroid in self.centroids] for x in X])
+        #similarities = np.array([[self._calculate_similarity(x, centroid) for centroid in self.centroids] for x in X])
+        similarities = np.dot(X, self.centroids.T)
         # Assign each point to the nearest centroid (highest similarity)
         if hard:
             return np.argmax(similarities, axis=1)
@@ -103,12 +104,12 @@ class SphericalKMeans:
 
     def _calculate_similarity(self, x1, x2):
         # Cosine similarity
-        return np.dot(x1, x2) / (np.linalg.norm(x1) * np.linalg.norm(x2))
+        return np.dot(x1, x2)# / (np.linalg.norm(x1) * np.linalg.norm(x2))
 
     def _normalize(self, X):
         norms = np.linalg.norm(X, axis=1, keepdims=True)
-        if np.any(norms == 0):
-            raise ValueError("Zero vector encountered during normalization")
+        #if np.any(norms == 0):
+        #    raise ValueError("Zero vector encountered during normalization")
         return X / norms
 
     def _calculate_inertia(self, X):
@@ -132,12 +133,14 @@ dfEmbeddings = pd.read_csv(
     'C:/Users/alire/OneDrive/data/statman_bitbucket/aki/LLM/March2024/openai_3large_operation.csv'
 )
 
-X = dfEmbeddings.iloc[:, 2:].to_numpy()
+my_n_cluster = 5
+my_n_features = 3072
+X = dfEmbeddings.iloc[:, 2:(2 + my_n_features)].to_numpy()
 #X = np.apply_along_axis(lambda x: x / np.sqrt(np.sum(x * x)), 1, X)
-obj_skmeans = SphericalKMeans(n_clusters = 10).fit(X)
+obj_skmeans = SphericalKMeans(n_clusters = my_n_cluster).fit(X)
 
 from sklearn.cluster import KMeans
-obj_kmeans = KMeans(n_clusters = 10).fit(X)
+obj_kmeans = KMeans(n_clusters = my_n_cluster).fit(X)
 
 hard_labels_skmeans = obj_skmeans.predict(X)
 hard_labels_kmeans = obj_kmeans.predict(X)
