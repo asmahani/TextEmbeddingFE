@@ -1,6 +1,5 @@
 import numpy as np
 from sklearn.utils.validation import check_array
-import warnings
 
 class SphericalKMeans:
     def __init__(self, n_clusters=3, max_iter=300, tol=1e-4, random_state=None, n_init=10):
@@ -13,6 +12,7 @@ class SphericalKMeans:
 
     def fit(self, X, y = None):
         X = check_array(X)
+        X = self._normalize(X)
         
         best_inertia = float('inf')
         best_centroids = None
@@ -21,9 +21,6 @@ class SphericalKMeans:
         for _ in range(self.n_init):
             if self.random_state is not None:
                 np.random.seed(self.random_state)
-            
-            # Normalize the data
-            X = self._normalize(X)
             
             # Initialize centroids
             self.centroids = self._initialize_centroids(X)
@@ -108,8 +105,6 @@ class SphericalKMeans:
 
     def _normalize(self, X):
         norms = np.linalg.norm(X, axis=1, keepdims=True)
-        #if np.any(norms == 0):
-        #    raise ValueError("Zero vector encountered during normalization")
         return X / norms
 
     def _calculate_inertia(self, X):

@@ -40,7 +40,12 @@ my_n_features = 3072
 
 X = dfEmbeddings.iloc[:, 2:(2 + my_n_features)].to_numpy()
 X = np.apply_along_axis(lambda x: x / np.sqrt(np.sum(x * x)), 1, X)
+
+import time
+
 X_unique = np.unique(X, axis = 0)
+
+t = time.time()
 
 init_indices = np.random.choice(X_unique.shape[0], size = my_n_cluster, replace = False)
 init_centroids = X_unique[init_indices, :]
@@ -49,9 +54,6 @@ init_similarities = np.dot(X, init_centroids.T)
 my_similarities = init_similarities
 my_centroids = init_centroids
 
-import time
-
-t = time.time()
 for n in range(50):
     my_similarities, my_labels, my_sizes, my_centroids, my_inertia, my_delta = skmeans_lloyd_update(
         X, my_centroids
