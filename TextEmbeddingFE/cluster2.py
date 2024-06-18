@@ -1,7 +1,7 @@
 import numpy as np
 from sklearn.utils.validation import check_array
 import time
-from TextEmbeddingFE.skmeans_lloyd_update import skmeans_lloyd_update as skmeans_lloyd_update_cython
+from TextEmbeddingFE.skmeans_lloyd_update import skmeans_lloyd_update_v2 as skmeans_lloyd_update_cython
 
 
 def skmeans_lloyd_update(

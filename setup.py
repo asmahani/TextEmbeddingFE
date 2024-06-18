@@ -27,8 +27,9 @@ setup(
     ext_modules=cythonize([
         Extension(
             name="TextEmbeddingFE.skmeans_lloyd_update",
-            sources=["TextEmbeddingFE/skmeans_lloyd_update.pyx"],
+            sources=["TextEmbeddingFE/skmeans_lloyd_update.pyx", "TextEmbeddingFE/skmeans_lloyd_update_cpp.cpp"],
             include_dirs=[np.get_include()]
+            ,language="c++"
         )
     ])
 )
