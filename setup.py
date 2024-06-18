@@ -1,4 +1,6 @@
-from setuptools import setup, find_packages
+from setuptools import setup, find_packages, Extension
+from Cython.Build import cythonize
+import numpy as np
 
 setup(
     name='TextEmbeddingFE',
@@ -22,4 +24,11 @@ setup(
     description='Feature extraction from text fields using text-embedding large language models',
     license='MIT',
     keywords=['text embedding', 'large language models', 'feature engineering', 'cross-validation'],
+    ext_modules=cythonize([
+        Extension(
+            name="TextEmbeddingFE.skmeans_lloyd_update",
+            sources=["TextEmbeddingFE/skmeans_lloyd_update.pyx"],
+            include_dirs=[np.get_include()]
+        )
+    ])
 )
