@@ -1,6 +1,8 @@
 import numpy as np
 from sklearn.utils.validation import check_array
 import time
+from TextEmbeddingFE.skmeans_lloyd_update import skmeans_lloyd_update as skmeans_lloyd_update_cython
+
 
 def skmeans_lloyd_update(
         X
@@ -82,7 +84,7 @@ class SphericalKMeans:
             for iter_count in range(self.max_iter):
                 try:
                     # Update centroids and calculate inertia using optimized Lloyd update
-                    similarities, labels, centroids, frob_norm = skmeans_lloyd_update(X, centroids, similarities)
+                    similarities, labels, centroids, frob_norm = skmeans_lloyd_update_cython(X, centroids, similarities)
                     
                     # Check for convergence
                     if frob_norm <= self.tol:
