@@ -16,11 +16,11 @@ def test_kmean():
     KMeans(n_clusters = my_n_cluster).fit(X)
     pass
 
-%timeit test_kmean()
+#%timeit test_kmean()
 
 def test_skmean():
     SKMeans(n_clusters = my_n_cluster).fit(X)
     pass
 
-%timeit test_skmean()
+#%timeit test_skmean()
 
