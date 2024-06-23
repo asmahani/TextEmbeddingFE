@@ -12,7 +12,7 @@ class Textcol2Mat(BaseEstimator, TransformerMixin):
         , type = 'doc2vec'
         , openai_client = None
         , embedding_model_openai = 'text-embedding-3-large'
-        , embedding_model_st = 'neuml/pubmedbert-base-embeddings'
+        , embedding_model_st = 'neuml/pubmedbert-base-embeddings-matryoshka'
         , embedding_model_doc2vec = 'PV-DM'
         , doc2vec_epochs = 40
         , doc2vec_vector_size = 10
@@ -87,7 +87,13 @@ class Textcol2Mat(BaseEstimator, TransformerMixin):
         return np.array(out)
 
     def _transform_st(self, X):
-        model = SentenceTransformer(self.embedding_model_st)
+        model_name = self.embedding_model_st
+        model_name_split = model_name.split('@')
+        assert len(model_name_split) <= 2, 'Too many @ characters in model name'
+        if len(model_name_split) == 1:
+            model = SentenceTransformer(model_name_split[0])
+        else:
+            model = SentenceTransformer(model_name_split[0], revision = model_name_split[1])
         return model.encode(X) 
     
     def _transform_openai(self, X):
