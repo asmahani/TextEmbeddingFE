@@ -15,6 +15,7 @@ setup(
         , 'scipy'
         , 'sentence-transformers'
         , 'gensim'
+        , 'vertexai'
     ],
     # Additional metadata about your package.
     author='Alireza S. Mahani',
