@@ -22,6 +22,7 @@ class Textcol2Mat(BaseEstimator, TransformerMixin):
         , doc2vec_epochs = 40
         , doc2vec_vector_size = 10
         , google_task = 'SEMANTIC_SIMILARITY'
+        , google_batch_size = 250
         #, google_vector_size = 256
         , colsep = ' || '
         , return_cols_prefix = 'X_'
@@ -44,6 +45,7 @@ class Textcol2Mat(BaseEstimator, TransformerMixin):
         self.doc2vec_epochs = doc2vec_epochs
         self.doc2vec_vector_size = doc2vec_vector_size
         self.google_task = google_task
+        self.google_batch_size = google_batch_size
         #self.google_vector_size = google_vector_size
         
         pass
@@ -97,11 +99,19 @@ class Textcol2Mat(BaseEstimator, TransformerMixin):
         return pd.DataFrame(arr, columns = [self.return_cols_prefix + str(i) for i in range(arr.shape[1])])
 
     def _transform_google(self, X):
-        vertexai.init(project = self.google_project_id, location = self.google_location)
+        vertexai.init(project=self.google_project_id, location=self.google_location)
         model = TextEmbeddingModel.from_pretrained(self.embedding_model_google)
-        inputs = [TextEmbeddingInput(text, self.google_task) for text in X]
+        if self.embedding_model_google == 'textembedding-gecko@001':
+            inputs = [TextEmbeddingInput(text) for text in X]
+        else:
+            inputs = [TextEmbeddingInput(text, self.google_task) for text in X]
         kwargs = {}
-        embeddings = model.get_embeddings(inputs, **kwargs)
+        embeddings = []
+        batch_size = self.google_batch_size
+        for i in range(0, len(inputs), batch_size):
+            batch_inputs = inputs[i:i+batch_size]
+            batch_embeddings = model.get_embeddings(batch_inputs, **kwargs)
+            embeddings.extend(batch_embeddings)
         return np.array([embedding.values for embedding in embeddings])
     
     def _transform_doc2vec(self, X):
